@@ -1,5 +1,8 @@
 package br.com.casadocodigo.loja.conf;
 
+import javax.servlet.Filter;
+
+import org.springframework.web.filter.CharacterEncodingFilter;
 import org.springframework.web.servlet.support.AbstractAnnotationConfigDispatcherServletInitializer;
 
 //HERDA AS CONFIGURAÇÕES DO SPRING
@@ -22,5 +25,15 @@ public class ServletSpringMVC extends AbstractAnnotationConfigDispatcherServletI
 		//URL QUE O SPRING IRÁ MAPEAR
 		return new String[] {"/"};
 	}
+	
+	//FILTRO PARA ENCODING UTF-8
+	//TODA REQUISIÇÃO SPRING SERÁ CONVERTIDO O ENCODING PARA UTF-8
+//	@Override
+//	protected Filter[] getServletFilters() {
+//		CharacterEncodingFilter encodingFilter = new CharacterEncodingFilter();
+//		encodingFilter.setEncoding("UTF-8");
+//		return new Filter[] {encodingFilter};
+//	}
+
 	
 }

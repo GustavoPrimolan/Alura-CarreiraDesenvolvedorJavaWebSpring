@@ -903,3 +903,345 @@ R: Quando utilizamos o ModelAndView, além retornar uma página, temos a possibili
 --------------------------------------------------------------------------------------------------
 <h1>Seção 04 - Listando os Produtos</h1>
 
+Nos últimos capítulos fizemos o cadastro completo dos produtos da nossa aplicação e já integramos esse cadastro com o banco de dados. Fizemos o formulário (form.jsp) ter os campos necessários para o cadastro de um novo produto. Fizemos também os campos dos tipos de preços serem criados dinamicamente através de um loop (forEach).
+
+Criamos na classe Produto um atributo que guarda uma lista de preços. Também criamos a classe Preco que guarda o valor e o tipo do preço, sendo que, para o tipo do preço, usamos um enum chamado TipoPreco para guardar as opções de preços que temos em nossa aplicação, sendo elas: Ebook, Impresso e Combo.
+
+Agora faremos a listagem desses produtos.
+
+Para aproveitarmos um pouco um código que já temos, vamos copiar todo o código que está no form.jsp. Criar um novo arquivo JSP chamado lista.jsp no mesmo diretório onde está o form.jsp e colar o código do form.jsp no lista.jsp.
+
+Como esta será uma página que apenas lista nossos produtos, não precisamos do formulário, sendo assim, apague o código referente ao formulário de cadastro (<form>). O código restante deve algo assim:
+
+<%@ page language="java" contentType="text/html; charset=UTF-8"
+    pageEncoding="UTF-8"%>
+<%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <title>Livros de Java, Android, iPhone, Ruby, PHP e muito mais - Casa do Código</title>
+    </head>
+    <body>
+
+    </body>
+</html>
+Nesta página então, criaremos uma tabela onde serão listados os produtos usando os seguintes dados: Título, descrição e quantidade de páginas. Sendo assim, no corpo da página (dentro da tag <body>) crie a estrutura básica da tabela, algo parecido com o código:
+
+[...]
+<body>
+    <table>
+        <tr>
+            <td>Título</td>
+            <td>Descrição</td>
+            <td>Páginas</td>
+        </tr>
+    </table>
+</body>
+[...]
+As tags table, tr, td representam a tabela (table), as linhas (tr) e as colunas (td). Esta será nossa tabela, esta primeira tr será a cabeçalho. As próximas linhas, já devem ser preenchidas com os dados dos produtos.
+
+No capítulo anterior, conhecemos o forEach. O forEach foi usado para percorrer uma lista e criar os campos do formulário. Faremos algo parecido aqui. Vamos percorrer uma lista de produtos. Usaremos a mesma estrutura do forEach aqui.
+
+Como cada uma das próximas linhas da tabela será um produto. E em cada linha, vamos imprimir os dados do produto(titulo, descricao e paginas). Então podemos facílmente escrever algo como:
+
+[...]
+<table>
+    <tr>
+        <td>Título</td>
+        <td>Descrição</td>
+        <td>Páginas</td>
+    </tr>
+
+    <c:forEach items="${produtos}" var="produto">
+        <tr>
+            <td>${produto.titulo}</td>
+            <td>${produto.descricao}</td>
+            <td>${produto.paginas}</td>
+        </tr>
+    </c:forEach>
+</table>
+[...]
+Vamos também adicionar um título nessa nossa página, pra não ficar só a tabela sem nenhuma descrição. Usaremos a tag h1 antes da tabela com o título: Lista de Produtos. <h1>Lista de Produtos</h1>.
+
+Já temos quase tudo pronto, precisamos somente fazer com que nosso ProdutoDAO acesse o banco de dados e crie essa lista de produtos que queremos exibir. E por último fazer o mapeamento no ProdutosController retornando a lista de produtos para a view lista.jsp.
+
+Crie na classe ProdutoDAO o método listar que usuará o EntityManager para criar uma consulta no banco de dados e retornar uma lista de produtos. O código é parecido com:
+
+public List<Produto> listar(){
+    return manager.createQuery("select p from Produto p", Produto.class).getResultList();
+}
+O getResultList irá criar uma lista com os resultados da consulta ao banco de dados.
+
+Nosso segundo passo é fazer com que nosso ProdutosController use o método listar do ProdutoDAO e retornar essa lista de produtos para a view.
+
+public ModelAndView listar(){
+    List<Produto> produtos = produtoDao.listar();
+    ModelAndView modelAndView = new ModelAndView("/produtos/lista");
+    modelAndView.addObject("produtos", produtos);
+    return modelAndView;
+}
+Nenhuma surpresa até aqui não é? Estamos usando recursos que já aprendemos anteriormente. Acessando o banco de dados, criando um ModelAndView para anexar objetos que serão usados em nossa view e retorando a lista.
+
+O ModelAndView é uma classe do Spring que faz um relacionamento de um modelo (model) com uma visualização (view) . Este além de poder disponibilizar um outro objeto qualquer para a view pode fazer outras operações, como redirecionamento de páginas, entre outras. Veremos mais sobre ModelAndView posteriormente.
+
+Vamos fazer com que a lista de produtos fique na url /produtos e faz sentido, certo? Quando acessamos /produtos queremos ver uma lista de produtos. Agora adicionaremos esse mapeamento de rota. O metodo listar deve ficar assim:
+
+@RequestMapping("/produtos")
+public ModelAndView listar(){
+    List<Produto> produtos = produtoDao.listar();
+    ModelAndView modelAndView = new ModelAndView("/produtos/lista");
+    modelAndView.addObject("produtos", produtos);
+    return modelAndView;
+}
+Com tudo isso pronto, podemos iniciar o servidor e tentar acessar a lista de produtos em localhost:8080/casadocodigo/produtos/. Mas algo parece não funcionar bem, temos um erro no console. veja a mensagem de erro:
+
+Ambiguous mapping found. Cannot map 'ProdutosController'.
+Isso acontece porque temos duas rotas em nosso controller apontando para a mesma url. Quando o acesso for feito, o Spring não vai saber qual método chamar do controller. Vamos resolver isso!
+
+Podemos diferenciar as rotas simplemente mudando a url que o método mapeia. Mas vamos diferenciar as rotas de uma outra forma. Vamos diferenciar pelos métodos usados pelo protocolo HTTP.
+
+Quando acessamos uma página, digitando uma url ou clicando em links, estamos fazendo um GET. Quando estamos clicando em nosso botão de cadastrar produtos por exemplo, geralmente estamos fazendo um POST. Se você verificar o formulário (form.jsp) verá o atribudo method com o valor POST.
+
+Para resolvermos o problema das todas duplicadas só precisaremos adicionar um novo parametro no @RequestMapping usando o enum RequestMethod do Spring, definindo assim qual método HTTP vai ser usado para chamar aquele método do controller.
+
+Quando fizermos um GET para /produtos o Spring deve chamar o método listar do nosso ProdutosController . Quando fizermos um POST para /produtos ele deve chamar o gravar, enviando um produto para ser gravado no banco de dados.
+
+Modificaremos então as anotações de @RequestMapping do método gravar e listar do nosso ProdutosController, fazendo essa diferenciação. Veja o código como fica:
+
+@RequestMapping(value="/produtos", method=RequestMethod.POST)
+    public String gravar(Produto produto){
+        [...]
+    }
+
+
+@RequestMapping(value="/produtos", method=RequestMethod.GET)
+public ModelAndView listar(){
+    [...]
+}
+Tente iniciar o servidor novamente e acessar a página de produtos, tudo deve funcionar normalmente.
+
+Mudando Enconding do Spring.
+Note que nossa lista de produtos aparece com alguns caracteres estranhos. Isso acontece por que o servidor não conhece o encoding da requisição, então ele troca os caracteres especiais e com acentos por outros caracteres.
+
+Carasteres estranhos na listagem dos produtos
+
+Há várias formas de resolver este problema, mas vamos usar uma das mais simples. Criando Filtros! Dessa forma, ao receber a requisição o Spring filtra a requisição com o encoding que vamos configurar. Em nossa classe ServeltSpringMVC dentro do pacote br.com.casadocodigo.loja.conf, vamos criar mais um método de configuração do Spring.
+
+Exite um método chamado getServletFilters usado pelo Spring que espera receber um array de filtros. Então vamos criar um CharacterEncodingFilter, definir o encoding deste filtro usando o valor "UTF-8", adicionar este filtro ao array de filtros e o retornar esse array para o Spring. Use os imports import javax.servlet.Filter e org.springframework.web.filter.CharacterEncodingFilter.
+
+public class ServletSpringMVC extends AbstractAnnotationConfigDispatcherServletInitializer{
+    @Override
+    protected Filter[] getServletFilters() {
+        CharacterEncodingFilter encodingFilter = new CharacterEncodingFilter();
+        encodingFilter.setEncoding("UTF-8");
+        return new Filter[] {encodingFilter};
+    }
+}
+Agora quando cadastrarmos novos produtos, os caracteres estarão normais.
+
+Carasteres normais na listagem dos produtos
+
+Melhorando rotas no controller
+Vamos fazer agora um pequeno ajuste em nosso ProdutosController para deixar o mapeamento das rotas mais simples. Note que em todos os métodos usamos a anotação @RequestMapping passando sempre /produtos.
+
+Para que não precisemos ficar passando /produtos em todos os métodos do controller, vamos pôr essa anotação em nossa classe. Assim podemos remover o /produtos de todos os métodos e o Spring se encarrega de carregar os mapeamentos baseados no mapeamento da classe. Sendo assim nossa classe ProdutosController deve ficar parecida com o código abaixo:
+
+@Controller
+@RequestMapping("produtos")
+public class ProdutosController {
+    [...]
+
+    @RequestMapping("/form")
+    public ModelAndView form(){
+        [...]
+    }
+
+    @RequestMapping(method=RequestMethod.POST)
+    public String gravar(Produto produto){
+        [...]
+    }
+
+
+    @RequestMapping(method=RequestMethod.GET)
+    public ModelAndView listar(){
+        [...]
+    }
+
+}
+Dessa forma, se acessamos /produtos via GET, o método listar será chamado. Se o acesso for via POST o método gravar será chamado. E o /produtos/form continua chamando o método form. Bem mais simples, certo?
+
+Teste novamente as páginas de listagem e de cadastro de produtos. Tudo deve estar funcionando normalmente. Cadastre novos produtos e verifique que os caracteres estranhos também não aparecem mais.
+
+
+<h2>Utilização de métodos de requisição do HTTP</h2>
+Até o momento, estávamos utilizando a anotação @RequestMapping apenas enviando a String que desejamos que ele mapeie. Entretanto, nesse capítulo, fizemos o uso do atributo method enviando como parâmetro os enuns RequestMethod.GET e RequestMethod.POST, e então, obtemos os seguintes resultados:
+
+@Controller
+@RequestMapping("produtos")
+public class ProdutoController {
+
+    @RequestMapping(method = RequestMethod.POST)
+    public String gravar(Produto produto) {
+            //Código
+    }
+
+    @RequestMapping(method = RequestMethod.GET)
+    public ModelAndView listar() {
+            //Código
+    }
+
+        // métodos
+}
+Considerando o exemplo, escolha a opção que descreve o que significa o atributo method e o motivo de utilizarmos ele para esse caso:
+
+R:Quando utilizamos o atributo method, significa que estamos enviando o método de requisicação do HTTP. Para esse caso, utilizamos esse atributo justamente para que fosse possível ter o mesmo mapeamento para duas funcionalidades distintas.
+
+
+------------------------------------------------------------------------------------------------
+<h1>Seção 05 - Redirect com Escopo de Flash</h1>
+
+O cadastro de produtos da nossa aplicação já funciona, mas da mesma forma que melhoramos as rotas no capítulo passado, vamos melhorar outro ponto da aplicação neste momento.
+
+É muito comum que após o cadastro de produtos, por exemplo, em vez de ser mostrada uma página com a mensagem de cadastro realizado com sucesso, sejamos levados novamente à lista com todos os produtos. Faremos essa modificação agora.
+
+Para que após o cadastro de produtos, sejamos levados à página de listagem, devemos então modificar o método gravar no ProdutosController, para que este método chame o método listar em vez de retornar a view ok.jsp.
+
+Nosso código atualmente está assim:
+
+@RequestMapping(method=RequestMethod.POST)
+public String gravar(Produto produto){
+    System.out.println(produto);
+    produtoDao.gravar(produto);
+    return "produtos/ok";
+}
+Vamos então, simplesmente mudar a rota do retorno do método para o endereço /produtos. Nosso código ficará assim:
+
+@RequestMapping(method=RequestMethod.POST)
+public String gravar(Produto produto){
+    System.out.println(produto);
+    produtoDao.gravar(produto);
+    return "produtos";
+}
+Com essa mudança, quando cadastrarmos um novo produtos, o método gravar deve salvar o produto no banco de dados e então o Spring deve chamar o método listar que é responsável por atender o endereço /produtos. Vamos fazer um teste e realizar um cadastro em "novo produto".
+
+![Erro 404 - página produtos.jsp não encontrada](https://s3.amazonaws.com/caelum-online-public/SpringMVC+-+criando+webapp/springmvc_i_webaapp_5_1_pagina_produtos_nao_encontrada.png)
+O que acontece? Vemos uma mensagem de Erro 404.
+
+A página produtos.jsp não foi encontrada, porque realmente não temos uma página produtos.jsp, temos uma página lista.jsp.
+
+O Spring, quando retornamos uma String procura uma página com o mesmo nome da String que retornamos, por isso ele está procurando uma página chamada produtos.jsp.
+
+Não era o que queríamos... Nós queremos ver a listagem de produtos que já está pronta na nossa página lista.jsp. Sabendo disso, vamos chamar o método listar do ProdutosController diretamente, isto fará com que o Spring carregue a listagem dos produtos e mostre a listagem no navegador.
+
+Logo, iremos mudar o retorno do nosso método gravar para que seja o mesmo do método listar. E depois, chamar o método listar com o return. Veja como ficou o código com as nossas modificações.
+
+@RequestMapping(method=RequestMethod.POST)
+public ModelAndView gravar(Produto produto){
+    System.out.println(produto);
+    produtoDao.gravar(produto);
+    return listar();
+}
+Observe que o retorno do método muda, pois o método listar retorna um objeto do tipo ModelAndView. Vamos cadastrar um novo produto agora. Após o cadastro, devemos ver a listagem de produtos com o nosso novo produto.
+
+cadastrando novo produto
+
+produto sendo listado depois do cadastro
+
+Experimente apertar F5 após o cadastro de algum produto.
+
+página de listagem fazendo resubmissão de formulário
+
+Veja que o navegador nos questiona se queremos resubmeter o formulário. Isso quer dizer que se confirmarmos, ele vai enviar os dados do produto novamente e teremos o produto recadastrado. Duplicação de produtos não é bom!
+
+Acontece que o navegador ainda está guardando os dados do post do formulário. Apesar de ser um problema real, não podemos culpar o navegador, pois este é o funcionamento normal no caso de posts de formulário. Modificaremos então este comportamento em nossa aplicação.
+
+Resolveremos isto através de recursos do protocolo HTTP. Já usamos outros recursos do protocolo (GET e POST). Agora, usaremos um recurso chamado de redirect, que passa um status para o navegador carregar uma outra página e esquecer dos dados da requisição anterior. O status que o navegador recebe é um 302.
+
+Para isso devemos mudar a última linha do método gravar, que agora vai retornar um novo ModelAndView usando como rota o redirect:produtos.
+
+Após as modificações, o método gravar ficará igual ao que está abaixo:
+
+@RequestMapping(method=RequestMethod.POST)
+public ModelAndView gravar(Produto produto){
+    System.out.println(produto);
+    produtoDao.gravar(produto);
+    return new ModelAndView("redirect:produtos");
+}
+Teste cadastrar um novo produto e atualizar a página de listagem depois do cadastro. O navegador não nos pede mais confirmação de resubmissão do formulário e também não duplicará os produtos na listagem.
+
+Nossa aplicação ainda precisa de mais um ajuste. Ela não mostra mais a mensagem de produto cadastrado com sucesso como tínhamos na view ok.jsp. Como é uma simples mensagem, usaremos um recurso do Spring que nos permite enviar informações entre requisições. Esse recurso é o RedirectAttributtes.
+
+O método gravar agora deve receber um objeto do tipo RedirectAttributes fornecido pelo Spring. Usaremos então esse objeto para adicionar um atributo do tipo Flash (usando o método addFlashAttribute deste objeto), passando assim a uma chave sucesso e o valor dessa chave que é Produto cadastrado com sucesso!.
+
+Veja como fica nosso método gravar com esta nova modificação:
+
+@RequestMapping(method=RequestMethod.POST)
+public ModelAndView gravar(Produto produto, RedirectAttributes redirectAttributes){
+    System.out.println(produto);
+    produtoDao.gravar(produto);
+    redirectAttributes.addFlashAttribute("sucesso","Produto cadastrado com sucesso!");
+    return new ModelAndView("redirect:produtos");
+}
+Observação: Atributos do tipo Flash têm uma particularidade que é interessante observar. Eles só duram até a próxima requisição, ou seja, transportam informações de uma requisição para a outra e então, deixam de existir.
+
+Note que usamos um RedirectAttributes. Isto faz muito sentido, já que após o post iremos redirecionar a página. A prática de fazer redirecionamentos após posts tem um nome bem conhecido, Always redirect after post (em português, significa Sempre redirecione após post).
+
+Agora para exibirmos esta mensagem em nossa listagem, devemos modificar o lista.jsp para exibir o RedirectAttributes, que é acessado através da chave message, veja como fica nosso lista.jsp:
+
+<%@ page language="java" contentType="text/html; charset=UTF-8"
+    pageEncoding="UTF-8"%>
+<%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"%>
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Livros de Java, Android, iPhone, Ruby, PHP e muito mais - Casa do Código</title>
+</head>
+<body>
+    <h1>Lista de Produtos</h1>
+    <p> ${sucesso} </p>
+    <table>
+        <tr>
+            <td>Título</td>
+            <td>Descrição</td>
+            <td>Páginas</td>
+        </tr>
+
+        <c:forEach items="${produtos}" var="produto">
+            <tr>
+                <td>${produto.titulo}</td>
+                <td>${produto.descricao}</td>
+                <td>${produto.paginas}</td>
+            </tr>
+        </c:forEach>
+    </table>
+</body>
+</html>
+Veja como ficou nossa mensagem de sucesso:
+
+listagem sem pedir resubmissão de formulario e com menssagem de sucesso
+
+Recapitulando:
+Até aqui fizemos nossa listagem de produtos, que usa o DAO para recuperar os produtos do banco de dados. Simplificamos nossas rotas assinando o ProdutosController com a anotação RequestMapping('produtos') e diferenciamos os métodos listar e gravar que mapeiam a mesma rota, através dos métodos usados pelo protocolo HTTP (GET e POST).
+
+Também aprendemos a redirecionar de uma página para outra. Vimos o conceito de Always redirect after post (que significa, "Sempre redirecione depois de post"). Evitando que dados sejam reenviados para nossa aplicação, duplicando registros em nosso banco de dados.
+
+Vimos também como podemos enviar mensagens de uma requisição para outra, havendo redirecionamento de páginas com o Flash, usando o RedirectAttributes e o método addFlashAttribute.
+
+
+<h2>Escopo de Flash</h2>
+O que é o Flash Scoped que usamos através do objeto RedirectAttributes do Spring?
+R: O Flash Scoped é um escopo rápido. Os objetos que adicionamos nele através do método addFlashAttribute ficam vivos de um request para outro, enquanto o navegador executa um redirect (usando o código de status 302).
+
+
+<h2>Always Redirect After Post</h2>
+Por que devemos sempre fazer um redirect após o formulário enviar um POST para nossos sistemas?
+R:Pois ao fazer F5 o navegador repete o ultimo request que ele realizou, e quando esse resquest é um POST, todos os dados que foram enviados também são repetidos. Se você realizou um insert no banco de dados, esse insert será repetido. Ou mesmo se realizou alguma operações que envia e-mail, por exemplo, o e-mail será enviado duas vezes ao pressionar F5.
+
+Para evitar qualquer problema de dados reenviados, realizamos um redirect após um formulário com POST.
+
+
+<h1>Seção 06 - Validação e conversão de dados</h1>
+
+
